@@ -432,9 +432,8 @@ const Navbar = () => {
   return (
     <motion.nav
       ref={navRef}
-      className={`fixed top-0 w-full z-40 transition-all duration-500 ${
-        scrolled ? "bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-2xl" : "bg-transparent"
-      }`}
+      className={`fixed top-0 w-full z-40 transition-all duration-500 ${scrolled ? "bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-2xl" : "bg-transparent"
+        }`}
       style={{
         background: scrolled
           ? "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)"
@@ -458,9 +457,8 @@ const Navbar = () => {
               <motion.button
                 key={item.name}
                 onClick={() => handleNavClick(item.href)}
-                className={`relative text-white/90 hover:text-white transition-colors text-base xl:text-lg font-medium group interactive ${
-                  activeSection === item.href.substring(1) ? "text-white" : ""
-                }`}
+                className={`relative text-white/90 hover:text-white transition-colors text-base xl:text-lg font-medium group interactive ${activeSection === item.href.substring(1) ? "text-white" : ""
+                  }`}
                 whileHover={{ y: -2 }}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -468,9 +466,8 @@ const Navbar = () => {
               >
                 {item.name}
                 <span
-                  className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-300 ${
-                    activeSection === item.href.substring(1) ? "w-full" : "w-0 group-hover:w-full"
-                  }`}
+                  className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 transition-all duration-300 ${activeSection === item.href.substring(1) ? "w-full" : "w-0 group-hover:w-full"
+                    }`}
                 />
               </motion.button>
             ))}
@@ -511,9 +508,8 @@ const Navbar = () => {
                 <motion.button
                   key={item.name}
                   onClick={() => handleNavClick(item.href)}
-                  className={`block w-full text-left px-6 py-4 text-white/90 hover:text-white hover:bg-white/10 transition-all interactive ${
-                    activeSection === item.href.substring(1) ? "bg-white/10 text-white" : ""
-                  }`}
+                  className={`block w-full text-left px-6 py-4 text-white/90 hover:text-white hover:bg-white/10 transition-all interactive ${activeSection === item.href.substring(1) ? "bg-white/10 text-white" : ""
+                    }`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -880,7 +876,7 @@ const AboutSection = () => {
       // Split text for reveal animations
       const titleSplit = new SplitText(titleRef.current, { type: "chars,words,lines" })
       const descriptionSplit = new SplitText(descriptionRef.current, { type: "words,lines" })
-      const contentSplit = new SplitText(contentRef.current?.querySelector("h3"), { type: "chars,words" })
+      const contentSplit = new SplitText(contentRef.current?.querySelector("h3") || null, { type: "chars,words" })
       const paragraphSplits = Array.from(contentRef.current?.querySelectorAll("p") || []).map(
         (p) => new SplitText(p, { type: "words,lines" }),
       )
@@ -1717,7 +1713,7 @@ const TestimonialsSection = () => {
               initial={{ opacity: 0, x: 100, rotateY: 90 }}
               animate={{ opacity: 1, x: 0, rotateY: 0 }}
               exit={{ opacity: 0, x: -100, rotateY: -90 }}
-              transition={{ duration: 0.8, ease: "power2.out" }}
+              transition={{ duration: 0.8, }}
               className="relative"
             >
               <div
@@ -1778,11 +1774,10 @@ const TestimonialsSection = () => {
                 <motion.button
                   key={index}
                   onClick={() => setCurrentIndex(index)}
-                  className={`w-3 sm:w-4 h-3 sm:h-4 rounded-full transition-all duration-300 interactive ${
-                    index === currentIndex
-                      ? "bg-gradient-to-r from-purple-400 to-pink-400 scale-125"
-                      : "bg-white/30 hover:bg-white/50"
-                  }`}
+                  className={`w-3 sm:w-4 h-3 sm:h-4 rounded-full transition-all duration-300 interactive ${index === currentIndex
+                    ? "bg-gradient-to-r from-purple-400 to-pink-400 scale-125"
+                    : "bg-white/30 hover:bg-white/50"
+                    }`}
                   whileHover={{ scale: 1.2 }}
                 />
               ))}
