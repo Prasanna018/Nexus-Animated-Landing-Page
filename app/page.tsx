@@ -1713,7 +1713,7 @@ const TestimonialsSection = () => {
               initial={{ opacity: 0, x: 100, rotateY: 90 }}
               animate={{ opacity: 1, x: 0, rotateY: 0 }}
               exit={{ opacity: 0, x: -100, rotateY: -90 }}
-              transition={{ duration: 0.8, }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
               className="relative"
             >
               <div
