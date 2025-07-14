@@ -4,9 +4,6 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
-import { TextPlugin } from "gsap/TextPlugin"
-import { ScrollToPlugin } from "gsap/ScrollToPlugin"
-import { SplitText } from "gsap/SplitText"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import {
   Menu,
@@ -44,18 +41,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-// Register GSAP plugins
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger, TextPlugin, ScrollToPlugin, SplitText)
-}
-
-// Smooth scroll utility
+// Smooth scroll utility using native browser API
 const smoothScrollTo = (target: string) => {
-  gsap.to(window, {
-    duration: 1.5,
-    scrollTo: { y: target, offsetY: 80 },
-    ease: "power2.inOut",
-  })
+  if (typeof window !== "undefined") {
+    const element = document.querySelector(target)
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+    }
+  }
 }
 
 // Parallax Background Component
@@ -68,53 +64,39 @@ const ParallaxBackground = () => {
   const layer5Ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Create multiple parallax layers with different speeds
-      ScrollTrigger.create({
-        trigger: containerRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: true,
-        onUpdate: (self) => {
-          const progress = self.progress
-          const scrollY = window.scrollY
+    if (typeof window === "undefined") return
 
-          // Layer 1 - Slowest (background stars)
-          gsap.set(layer1Ref.current, {
-            y: scrollY * 0.1,
-            rotation: scrollY * 0.01,
-          })
+    const handleScroll = () => {
+      const scrollY = window.scrollY
 
-          // Layer 2 - Slow (large shapes)
-          gsap.set(layer2Ref.current, {
-            y: scrollY * 0.2,
-            x: scrollY * 0.05,
-          })
+      // Layer 1 - Slowest (background stars)
+      if (layer1Ref.current) {
+        layer1Ref.current.style.transform = `translateY(${scrollY * 0.1}px) rotate(${scrollY * 0.01}deg)`
+      }
 
-          // Layer 3 - Medium (medium shapes)
-          gsap.set(layer3Ref.current, {
-            y: scrollY * 0.3,
-            x: scrollY * -0.03,
-            rotation: scrollY * -0.02,
-          })
+      // Layer 2 - Slow (large shapes)
+      if (layer2Ref.current) {
+        layer2Ref.current.style.transform = `translateY(${scrollY * 0.2}px) translateX(${scrollY * 0.05}px)`
+      }
 
-          // Layer 4 - Fast (small elements)
-          gsap.set(layer4Ref.current, {
-            y: scrollY * 0.5,
-            x: scrollY * 0.08,
-          })
+      // Layer 3 - Medium (medium shapes)
+      if (layer3Ref.current) {
+        layer3Ref.current.style.transform = `translateY(${scrollY * 0.3}px) translateX(${scrollY * -0.03}px) rotate(${scrollY * -0.02}deg)`
+      }
 
-          // Layer 5 - Fastest (foreground particles)
-          gsap.set(layer5Ref.current, {
-            y: scrollY * 0.7,
-            x: scrollY * -0.1,
-            rotation: scrollY * 0.03,
-          })
-        },
-      })
-    }, containerRef)
+      // Layer 4 - Fast (small elements)
+      if (layer4Ref.current) {
+        layer4Ref.current.style.transform = `translateY(${scrollY * 0.5}px) translateX(${scrollY * 0.08}px)`
+      }
 
-    return () => ctx.revert()
+      // Layer 5 - Fastest (foreground particles)
+      if (layer5Ref.current) {
+        layer5Ref.current.style.transform = `translateY(${scrollY * 0.7}px) translateX(${scrollY * -0.1}px) rotate(${scrollY * 0.03}deg)`
+      }
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
   return (
@@ -188,6 +170,8 @@ const CustomCursor = () => {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     // Only show cursor on desktop
     const checkDevice = () => {
       setIsVisible(window.innerWidth > 1024)
@@ -202,30 +186,24 @@ const CustomCursor = () => {
     const follower = followerRef.current
 
     const moveCursor = (e: MouseEvent) => {
-      gsap.to(cursor, {
-        x: e.clientX,
-        y: e.clientY,
-        duration: 0.1,
-      })
-      gsap.to(follower, {
-        x: e.clientX,
-        y: e.clientY,
-        duration: 0.3,
-      })
+      if (cursor && follower) {
+        cursor.style.transform = `translate(${e.clientX - 8}px, ${e.clientY - 8}px)`
+        follower.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
+      }
     }
 
     const handleMouseEnter = () => {
-      gsap.to([cursor, follower], {
-        scale: 1.5,
-        duration: 0.3,
-      })
+      if (cursor && follower) {
+        cursor.style.transform += " scale(1.5)"
+        follower.style.transform += " scale(1.5)"
+      }
     }
 
     const handleMouseLeave = () => {
-      gsap.to([cursor, follower], {
-        scale: 1,
-        duration: 0.3,
-      })
+      if (cursor && follower) {
+        cursor.style.transform = cursor.style.transform.replace(" scale(1.5)", "")
+        follower.style.transform = follower.style.transform.replace(" scale(1.5)", "")
+      }
     }
 
     document.addEventListener("mousemove", moveCursor)
@@ -252,13 +230,11 @@ const CustomCursor = () => {
     <>
       <div
         ref={cursorRef}
-        className="fixed w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full pointer-events-none z-50 mix-blend-difference hidden lg:block"
-        style={{ transform: "translate(-50%, -50%)" }}
+        className="fixed w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full pointer-events-none z-50 mix-blend-difference hidden lg:block transition-transform duration-100"
       />
       <div
         ref={followerRef}
-        className="fixed w-8 h-8 border-2 border-purple-500 rounded-full pointer-events-none z-50 opacity-50 hidden lg:block"
-        style={{ transform: "translate(-50%, -50%)" }}
+        className="fixed w-8 h-8 border-2 border-purple-500 rounded-full pointer-events-none z-50 opacity-50 hidden lg:block transition-transform duration-300"
       />
     </>
   )
@@ -269,6 +245,8 @@ const ParticleSystem = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     const container = containerRef.current
     if (!container) return
 
@@ -281,19 +259,15 @@ const ParticleSystem = () => {
       particle.style.top = Math.random() * 100 + "%"
       container.appendChild(particle)
 
-      gsap.to(particle, {
-        y: -100,
-        x: Math.random() * 200 - 100,
-        opacity: 0,
-        duration: Math.random() * 3 + 2,
-        repeat: -1,
-        delay: Math.random() * 2,
-        ease: "power2.out",
-      })
+      // Simple CSS animation instead of GSAP
+      particle.style.animation = `float ${Math.random() * 3 + 2}s infinite linear`
+      particle.style.animationDelay = `${Math.random() * 2}s`
     }
 
     return () => {
-      container.innerHTML = ""
+      if (container) {
+        container.innerHTML = ""
+      }
     }
   }, [])
 
@@ -304,45 +278,23 @@ const ParticleSystem = () => {
 const LoadingScreen = ({ onComplete }: { onComplete: () => void }) => {
   const loadingRef = useRef<HTMLDivElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLDivElement>(null)
-  const logoRef = useRef<HTMLDivElement>(null)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        setTimeout(onComplete, 500)
-      },
-    })
+    if (typeof window === "undefined") return
 
-    // Logo animation
-    tl.fromTo(
-      logoRef.current,
-      { scale: 0, rotation: -180 },
-      { scale: 1, rotation: 0, duration: 1, ease: "back.out(1.7)" },
-    )
-      .to(
-        progressRef.current,
-        {
-          width: "100%",
-          duration: 2,
-          ease: "power2.inOut",
-        },
-        "-=0.5",
-      )
-      .to(
-        textRef.current,
-        {
-          text: "Welcome to the Future",
-          duration: 1,
-          ease: "none",
-        },
-        "-=1",
-      )
-      .to(loadingRef.current, {
-        y: "-100%",
-        duration: 1,
-        ease: "power2.inOut",
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(timer)
+          setTimeout(onComplete, 500)
+          return 100
+        }
+        return prev + 2
       })
+    }, 50)
+
+    return () => clearInterval(timer)
   }, [onComplete])
 
   return (
@@ -351,14 +303,16 @@ const LoadingScreen = ({ onComplete }: { onComplete: () => void }) => {
       className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center z-50"
     >
       <div className="text-center px-4">
-        <div ref={logoRef} className="text-6xl md:text-8xl mb-8">
-          ✨
-        </div>
+        <div className="text-6xl md:text-8xl mb-8 animate-pulse">✨</div>
         <div className="w-48 sm:w-64 h-1 bg-gray-700 rounded-full mb-8 overflow-hidden mx-auto">
-          <div ref={progressRef} className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-0 rounded-full" />
+          <div
+            ref={progressRef}
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-100"
+            style={{ width: `${progress}%` }}
+          />
         </div>
-        <div ref={textRef} className="text-xl md:text-2xl font-bold text-white">
-          Loading...
+        <div className="text-xl md:text-2xl font-bold text-white">
+          {progress < 100 ? "Loading..." : "Welcome to the Future"}
         </div>
       </div>
     </div>
@@ -371,7 +325,6 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState("home")
   const navRef = useRef<HTMLElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
 
   const navItems = [
     { name: "Home", href: "#home" },
@@ -383,6 +336,8 @@ const Navbar = () => {
   ]
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
 
@@ -402,31 +357,13 @@ const Navbar = () => {
       }
     }
 
-    gsap.fromTo(
-      navRef.current,
-      { y: -100, opacity: 0 },
-      { y: 0, opacity: 1, duration: 1, ease: "power2.out", delay: 2.5 },
-    )
-
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+  }, [navItems])
 
   const handleNavClick = (href: string) => {
     setIsOpen(false)
     smoothScrollTo(href)
-  }
-
-  const toggleMenu = () => {
-    setIsOpen(!isOpen)
-
-    if (!isOpen) {
-      gsap.fromTo(
-        menuRef.current?.children || [],
-        { x: -50, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.3, stagger: 0.1, ease: "power2.out" },
-      )
-    }
   }
 
   return (
@@ -434,11 +371,9 @@ const Navbar = () => {
       ref={navRef}
       className={`fixed top-0 w-full z-40 transition-all duration-500 ${scrolled ? "bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-2xl" : "bg-transparent"
         }`}
-      style={{
-        background: scrolled
-          ? "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)"
-          : "transparent",
-      }}
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 1, delay: 2.5 }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
@@ -487,7 +422,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onClick={toggleMenu}
+            onClick={() => setIsOpen(!isOpen)}
             className="lg:hidden p-2 text-white interactive"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -498,7 +433,6 @@ const Navbar = () => {
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              ref={menuRef}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -546,9 +480,7 @@ const HeroSection = () => {
   const subtitleRef = useRef<HTMLParagraphElement>(null)
   const ctaRef = useRef<HTMLDivElement>(null)
   const typewriterRef = useRef<HTMLDivElement>(null)
-  const parallaxLayer1 = useRef<HTMLDivElement>(null)
-  const parallaxLayer2 = useRef<HTMLDivElement>(null)
-  const parallaxLayer3 = useRef<HTMLDivElement>(null)
+  const [typewriterText, setTypewriterText] = useState("IMPOSSIBLE")
 
   const { scrollY } = useScroll()
   const y1 = useTransform(scrollY, [0, 1000], [0, -300])
@@ -558,140 +490,18 @@ const HeroSection = () => {
   const scale1 = useTransform(scrollY, [0, 500], [1, 1.2])
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ delay: 3 })
+    if (typeof window === "undefined") return
 
-      // Typewriter effect for the main title
-      const titleSplit = new SplitText(titleRef.current, { type: "chars,words" })
-      const subtitleSplit = new SplitText(subtitleRef.current, { type: "chars,words" })
+    // Typewriter effect
+    const typewriterTexts = ["IMPOSSIBLE", "EXTRAORDINARY", "REVOLUTIONARY", "MAGNIFICENT", "INCREDIBLE"]
+    let currentIndex = 0
 
-      // Set initial states
-      gsap.set(titleSplit.chars, { opacity: 0, y: 50, rotationX: -90 })
-      gsap.set(subtitleSplit.chars, { opacity: 0, y: 30 })
-      gsap.set(ctaRef.current, { opacity: 0, y: 50, scale: 0.8 })
+    const typewriterInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % typewriterTexts.length
+      setTypewriterText(typewriterTexts[currentIndex])
+    }, 3000)
 
-      // Typewriter animation for title
-      tl.to(titleSplit.chars, {
-        opacity: 1,
-        y: 0,
-        rotationX: 0,
-        duration: 0.05,
-        stagger: {
-          each: 0.05,
-          from: "start",
-        },
-        ease: "back.out(1.7)",
-      })
-        // Typewriter effect for subtitle
-        .to(
-          subtitleSplit.chars,
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.03,
-            stagger: {
-              each: 0.02,
-              from: "start",
-            },
-            ease: "power2.out",
-          },
-          "-=0.5",
-        )
-        // CTA buttons entrance
-        .to(
-          ctaRef.current,
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.8,
-            ease: "back.out(1.7)",
-          },
-          "-=0.3",
-        )
-
-      // Floating animation
-      gsap.to(titleRef.current, {
-        y: -10,
-        duration: 3,
-        repeat: -1,
-        yoyo: true,
-        ease: "power2.inOut",
-      })
-
-      // Typewriter effect for dynamic text
-      const typewriterTexts = ["IMPOSSIBLE", "EXTRAORDINARY", "REVOLUTIONARY", "MAGNIFICENT", "INCREDIBLE"]
-      let currentIndex = 0
-
-      const typewriterAnimation = () => {
-        const currentText = typewriterTexts[currentIndex]
-
-        gsap.to(typewriterRef.current, {
-          text: "",
-          duration: 0.5,
-          ease: "none",
-          onComplete: () => {
-            gsap.to(typewriterRef.current, {
-              text: currentText,
-              duration: currentText.length * 0.1,
-              ease: "none",
-              onComplete: () => {
-                setTimeout(() => {
-                  currentIndex = (currentIndex + 1) % typewriterTexts.length
-                  typewriterAnimation()
-                }, 2000)
-              },
-            })
-          },
-        })
-      }
-
-      // Start typewriter after initial animation
-      setTimeout(typewriterAnimation, 4000)
-
-      // Advanced parallax effects
-      ScrollTrigger.create({
-        trigger: heroRef.current,
-        start: "top top",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const progress = self.progress
-          const scrollY = window.scrollY
-
-          // Layer 1 - Background elements (slowest)
-          gsap.set(parallaxLayer1.current, {
-            y: scrollY * 0.1,
-            scale: 1 + progress * 0.2,
-            opacity: 1 - progress * 0.5,
-          })
-
-          // Layer 2 - Mid elements
-          gsap.set(parallaxLayer2.current, {
-            y: scrollY * 0.3,
-            x: scrollY * 0.05,
-            rotation: scrollY * 0.02,
-          })
-
-          // Layer 3 - Foreground elements (fastest)
-          gsap.set(parallaxLayer3.current, {
-            y: scrollY * 0.6,
-            x: scrollY * -0.03,
-            scale: 1 + progress * 0.1,
-          })
-
-          // Main content parallax
-          gsap.to(titleRef.current, {
-            scale: 1 - progress * 0.1,
-            opacity: 1 - progress * 0.3,
-            y: scrollY * 0.2,
-            duration: 0.3,
-          })
-        },
-      })
-    }, heroRef)
-
-    return () => ctx.revert()
+    return () => clearInterval(typewriterInterval)
   }, [])
 
   return (
@@ -704,7 +514,7 @@ const HeroSection = () => {
       }}
     >
       {/* Parallax Layer 1 - Background */}
-      <motion.div ref={parallaxLayer1} style={{ y: y1, opacity: opacity1, scale: scale1 }} className="absolute inset-0">
+      <motion.div style={{ y: y1, opacity: opacity1, scale: scale1 }} className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/50 via-blue-900/30 to-indigo-900/50" />
         <ParticleSystem />
         {/* Large background shapes */}
@@ -713,7 +523,7 @@ const HeroSection = () => {
       </motion.div>
 
       {/* Parallax Layer 2 - Mid elements */}
-      <motion.div ref={parallaxLayer2} style={{ y: y2 }} className="absolute inset-0">
+      <motion.div style={{ y: y2 }} className="absolute inset-0">
         <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-gradient-to-r from-yellow-400/25 to-orange-400/25 rounded-full blur-2xl" />
         <div className="absolute bottom-1/3 left-1/4 w-48 h-48 bg-gradient-to-r from-green-400/20 to-teal-400/20 rounded-full blur-xl" />
         {/* Floating geometric shapes */}
@@ -722,12 +532,12 @@ const HeroSection = () => {
       </motion.div>
 
       {/* Parallax Layer 3 - Foreground elements */}
-      <motion.div ref={parallaxLayer3} style={{ y: y3 }} className="absolute inset-0">
+      <motion.div style={{ y: y3 }} className="absolute inset-0">
         {/* Small floating particles */}
         {[...Array(15)].map((_, i) => (
           <div
             key={`float-${i}`}
-            className="absolute w-4 h-4 bg-gradient-to-r from-white/30 to-cyan-400/30 rounded-full blur-sm"
+            className="absolute w-4 h-4 bg-gradient-to-r from-white/30 to-cyan-400/30 rounded-full blur-sm animate-float"
             style={{
               left: `${20 + Math.random() * 60}%`,
               top: `${20 + Math.random() * 60}%`,
@@ -744,6 +554,9 @@ const HeroSection = () => {
           style={{
             textShadow: "0 0 30px rgba(255,255,255,0.5)",
           }}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 3 }}
         >
           Create The
           <span className="block">
@@ -751,7 +564,7 @@ const HeroSection = () => {
               ref={typewriterRef}
               className="bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
             >
-              IMPOSSIBLE
+              {typewriterText}
             </span>
             <span className="animate-pulse text-white">|</span>
           </span>
@@ -760,12 +573,21 @@ const HeroSection = () => {
         <motion.p
           ref={subtitleRef}
           className="text-lg sm:text-xl lg:text-2xl text-white/90 max-w-4xl mx-auto mb-8 sm:mb-12 leading-relaxed px-4"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 3.5 }}
         >
           Transform your wildest ideas into stunning digital experiences with cutting-edge technology, breathtaking
           animations, and designs that captivate every visitor.
         </motion.p>
 
-        <motion.div ref={ctaRef} className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center px-4">
+        <motion.div
+          ref={ctaRef}
+          className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center px-4"
+          initial={{ opacity: 0, y: 50, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, delay: 4 }}
+        >
           <motion.div
             whileHover={{
               scale: 1.05,
@@ -832,12 +654,7 @@ const HeroSection = () => {
 // Enhanced About Section with Parallax
 const AboutSection = () => {
   const sectionRef = useRef<HTMLElement>(null)
-  const statsRef = useRef<HTMLDivElement>(null)
-  const titleRef = useRef<HTMLHeadingElement>(null)
-  const descriptionRef = useRef<HTMLParagraphElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const parallaxBg = useRef<HTMLDivElement>(null)
-  const parallaxElements = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const stats = [
     { number: "500+", label: "Projects Completed", icon: <Award className="w-6 h-6" /> },
@@ -847,180 +664,22 @@ const AboutSection = () => {
   ]
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Parallax effects for background elements
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const progress = self.progress
-          const scrollY = window.scrollY
+    if (typeof window === "undefined") return
 
-          // Background parallax
-          gsap.set(parallaxBg.current, {
-            y: scrollY * 0.1,
-            scale: 1 + progress * 0.05,
-          })
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-          // Floating elements parallax
-          gsap.set(parallaxElements.current, {
-            y: scrollY * 0.3,
-            x: scrollY * 0.02,
-            rotation: scrollY * 0.01,
-          })
-        },
-      })
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
 
-      // Split text for reveal animations
-      const titleSplit = new SplitText(titleRef.current, { type: "chars,words,lines" })
-      const descriptionSplit = new SplitText(descriptionRef.current, { type: "words,lines" })
-      const contentSplit = new SplitText(contentRef.current?.querySelector("h3") || null, { type: "chars,words" })
-      const paragraphSplits = Array.from(contentRef.current?.querySelectorAll("p") || []).map(
-        (p) => new SplitText(p, { type: "words,lines" }),
-      )
-
-      // Set initial states
-      gsap.set(titleSplit.chars, { opacity: 0, y: 100, rotationX: -90 })
-      gsap.set(descriptionSplit.words, { opacity: 0, y: 50 })
-      gsap.set(contentSplit.chars, { opacity: 0, x: -50 })
-      paragraphSplits.forEach((split) => {
-        gsap.set(split.words, { opacity: 0, y: 30 })
-      })
-
-      // Title reveal animation
-      ScrollTrigger.create({
-        trigger: titleRef.current,
-        start: "top 80%",
-        onEnter: () => {
-          gsap.to(titleSplit.chars, {
-            opacity: 1,
-            y: 0,
-            rotationX: 0,
-            duration: 0.8,
-            stagger: {
-              each: 0.03,
-              from: "start",
-            },
-            ease: "back.out(1.7)",
-          })
-        },
-      })
-
-      // Description reveal animation
-      ScrollTrigger.create({
-        trigger: descriptionRef.current,
-        start: "top 85%",
-        onEnter: () => {
-          gsap.to(descriptionSplit.words, {
-            opacity: 1,
-            y: 0,
-            duration: 0.6,
-            stagger: {
-              each: 0.05,
-              from: "start",
-            },
-            ease: "power2.out",
-          })
-        },
-      })
-
-      // Content reveal animation
-      ScrollTrigger.create({
-        trigger: contentRef.current,
-        start: "top 80%",
-        onEnter: () => {
-          // Animate heading
-          gsap.to(contentSplit.chars, {
-            opacity: 1,
-            x: 0,
-            duration: 0.05,
-            stagger: {
-              each: 0.02,
-              from: "start",
-            },
-            ease: "power2.out",
-          })
-
-          // Animate paragraphs
-          paragraphSplits.forEach((split, index) => {
-            gsap.to(split.words, {
-              opacity: 1,
-              y: 0,
-              duration: 0.6,
-              stagger: {
-                each: 0.03,
-                from: "start",
-              },
-              ease: "power2.out",
-              delay: index * 0.2 + 0.5,
-            })
-          })
-        },
-      })
-
-      // Stats counter animation
-      ScrollTrigger.create({
-        trigger: statsRef.current,
-        start: "top 80%",
-        onEnter: () => {
-          stats.forEach((stat, index) => {
-            const element = document.querySelector(`[data-stat="${index}"]`)
-            if (element && stat.number.includes("+")) {
-              const finalNumber = Number.parseInt(stat.number.replace("+", ""))
-              gsap.fromTo(
-                element,
-                { textContent: 0 },
-                {
-                  textContent: finalNumber,
-                  duration: 2,
-                  ease: "power2.out",
-                  snap: { textContent: 1 },
-                  onUpdate: function () {
-                    element.textContent = Math.ceil(this.targets()[0].textContent) + "+"
-                  },
-                },
-              )
-            } else if (element && stat.number.includes("%")) {
-              const finalNumber = Number.parseInt(stat.number.replace("%", ""))
-              gsap.fromTo(
-                element,
-                { textContent: 0 },
-                {
-                  textContent: finalNumber,
-                  duration: 2,
-                  ease: "power2.out",
-                  snap: { textContent: 1 },
-                  onUpdate: function () {
-                    element.textContent = Math.ceil(this.targets()[0].textContent) + "%"
-                  },
-                },
-              )
-            }
-          })
-        },
-      })
-
-      gsap.fromTo(
-        ".about-element",
-        { y: 100, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.2,
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
-
-    return () => ctx.revert()
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -1030,37 +689,42 @@ const AboutSection = () => {
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 relative overflow-hidden"
     >
       {/* Parallax Background */}
-      <div ref={parallaxBg} className="absolute inset-0">
+      <div className="absolute inset-0">
         <div className="absolute top-0 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-pink-500/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Parallax Floating Elements */}
-      <div ref={parallaxElements} className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 right-1/6 w-32 h-32 bg-gradient-to-r from-cyan-400/20 to-blue-400/20 rounded-full blur-xl" />
-        <div className="absolute bottom-1/3 left-1/6 w-24 h-24 bg-gradient-to-r from-yellow-400/25 to-orange-400/25 rounded-lg blur-lg rotate-45" />
-        <div className="absolute top-2/3 right-1/3 w-16 h-16 bg-gradient-to-r from-green-400/30 to-teal-400/30 rounded-full blur-md" />
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12 sm:mb-16 lg:mb-20">
-          <h2
-            ref={titleRef}
+          <motion.h2
             className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6"
+            initial={{ opacity: 0, y: 100 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1 }}
           >
             About
             <span className="block bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
               Our Vision
             </span>
-          </h2>
-          <p ref={descriptionRef} className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4">
+          </motion.h2>
+          <motion.p
+            className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             We're not just building websites - we're crafting digital experiences that push the boundaries of what's
             possible.
-          </p>
+          </motion.p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-16 sm:mb-20">
-          <div ref={contentRef} className="about-element">
+          <motion.div
+            className="about-element"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
             <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6">
               Innovation Meets Excellence
             </h3>
@@ -1072,9 +736,14 @@ const AboutSection = () => {
             <p className="text-base sm:text-lg text-white/70 leading-relaxed">
               From concept to deployment, we ensure every pixel serves a purpose and every interaction tells a story.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="about-element grid grid-cols-2 gap-4 sm:gap-6">
+          <motion.div
+            className="about-element grid grid-cols-2 gap-4 sm:gap-6"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.6 }}
+          >
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/20">
               <Target className="w-8 h-8 sm:w-10 sm:h-10 text-purple-400 mb-3 sm:mb-4" />
               <h4 className="text-lg sm:text-xl font-bold text-white mb-2">Precision</h4>
@@ -1085,24 +754,25 @@ const AboutSection = () => {
               <h4 className="text-lg sm:text-xl font-bold text-white mb-2">Depth</h4>
               <p className="text-sm sm:text-base text-white/70">Multi-layered solutions for complex challenges.</p>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Stats Section */}
-        <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {stats.map((stat, index) => (
             <motion.div
               key={index}
               className="about-element bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 text-center group interactive"
               whileHover={{ scale: 1.05, y: -5 }}
               transition={{ type: "spring", stiffness: 300 }}
+              initial={{ opacity: 0, y: 50 }}
+              animate={isVisible ? { opacity: 1, y: 0 } : {}}
+              style={{ transitionDelay: `${index * 0.1}s` }}
             >
               <div className="text-purple-400 mb-3 sm:mb-4 flex justify-center group-hover:scale-110 transition-transform">
                 {stat.icon}
               </div>
-              <div data-stat={index} className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2">
-                {stat.number}
-              </div>
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-2">{stat.number}</div>
               <p className="text-xs sm:text-sm lg:text-base text-white/70">{stat.label}</p>
             </motion.div>
           ))}
@@ -1112,12 +782,10 @@ const AboutSection = () => {
   )
 }
 
-// New Parallax Technology Showcase Section
+// Technology Showcase Section
 const TechnologyShowcase = () => {
   const sectionRef = useRef<HTMLElement>(null)
-  const parallaxLayer1 = useRef<HTMLDivElement>(null)
-  const parallaxLayer2 = useRef<HTMLDivElement>(null)
-  const parallaxLayer3 = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const technologies = [
     { icon: <Cloud className="w-12 h-12" />, name: "Cloud Computing", color: "from-blue-500 to-cyan-500" },
@@ -1129,62 +797,22 @@ const TechnologyShowcase = () => {
   ]
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Multi-layer parallax effect
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const progress = self.progress
-          const scrollY = window.scrollY
+    if (typeof window === "undefined") return
 
-          // Layer 1 - Background (slowest)
-          gsap.set(parallaxLayer1.current, {
-            y: scrollY * 0.1,
-            scale: 1 + progress * 0.1,
-            rotation: scrollY * 0.005,
-          })
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-          // Layer 2 - Mid layer
-          gsap.set(parallaxLayer2.current, {
-            y: scrollY * 0.25,
-            x: scrollY * 0.03,
-            rotation: scrollY * -0.01,
-          })
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
 
-          // Layer 3 - Foreground (fastest)
-          gsap.set(parallaxLayer3.current, {
-            y: scrollY * 0.4,
-            x: scrollY * -0.02,
-            scale: 1 + progress * 0.05,
-          })
-        },
-      })
-
-      // Technology cards animation
-      gsap.fromTo(
-        ".tech-card",
-        { y: 100, opacity: 0, rotationY: 45 },
-        {
-          y: 0,
-          opacity: 1,
-          rotationY: 0,
-          duration: 1,
-          stagger: 0.2,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 70%",
-            end: "bottom 30%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
-
-    return () => ctx.revert()
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -1192,44 +820,27 @@ const TechnologyShowcase = () => {
       ref={sectionRef}
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden"
     >
-      {/* Parallax Layer 1 - Background */}
-      <div ref={parallaxLayer1} className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/6 w-96 h-96 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/6 w-80 h-80 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 rounded-full blur-3xl" />
-      </div>
-
-      {/* Parallax Layer 2 - Mid elements */}
-      <div ref={parallaxLayer2} className="absolute inset-0">
-        <div className="absolute top-1/3 right-1/4 w-48 h-48 bg-gradient-to-r from-green-500/8 to-teal-500/8 rounded-full blur-2xl" />
-        <div className="absolute bottom-1/3 left-1/4 w-32 h-32 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg blur-xl rotate-45" />
-      </div>
-
-      {/* Parallax Layer 3 - Foreground particles */}
-      <div ref={parallaxLayer3} className="absolute inset-0">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={`tech-particle-${i}`}
-            className="absolute w-2 h-2 bg-gradient-to-r from-cyan-400/30 to-purple-400/30 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-            }}
-          />
-        ))}
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12 sm:mb-16 lg:mb-20">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6">
+          <motion.h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1 }}
+          >
             Technology
             <span className="block bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
               Arsenal
             </span>
-          </h2>
-          <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4">
+          </motion.h2>
+          <motion.p
+            className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4"
+            initial={{ opacity: 0, y: 30 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             Powered by the most advanced technologies and frameworks in the industry.
-          </p>
+          </motion.p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -1239,6 +850,9 @@ const TechnologyShowcase = () => {
               className="tech-card group interactive"
               whileHover={{ scale: 1.05, y: -10 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              initial={{ opacity: 0, y: 100 }}
+              animate={isVisible ? { opacity: 1, y: 0, rotateY: 0 } : {}}
+              style={{ transitionDelay: `${index * 0.2}s` }}
             >
               <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-6 sm:p-8 border border-white/10 hover:border-white/20 transition-all duration-300 h-full">
                 <div
@@ -1263,12 +877,10 @@ const TechnologyShowcase = () => {
   )
 }
 
-// Enhanced Features Section with Parallax
+// Features Section
 const FeaturesSection = () => {
   const sectionRef = useRef<HTMLElement>(null)
-  const titleRef = useRef<HTMLHeadingElement>(null)
-  const cardsRef = useRef<HTMLDivElement>(null)
-  const parallaxBg = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const features = [
     {
@@ -1302,59 +914,22 @@ const FeaturesSection = () => {
   ]
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Parallax background
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const scrollY = window.scrollY
-          gsap.set(parallaxBg.current, {
-            y: scrollY * 0.15,
-            scale: 1 + self.progress * 0.1,
-          })
-        },
-      })
+    if (typeof window === "undefined") return
 
-      gsap.fromTo(
-        titleRef.current,
-        { y: 100, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 1,
-          scrollTrigger: {
-            trigger: titleRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-      gsap.fromTo(
-        ".feature-card",
-        { y: 100, opacity: 0, scale: 0.8 },
-        {
-          y: 0,
-          opacity: 1,
-          scale: 1,
-          duration: 0.8,
-          stagger: 0.2,
-          ease: "back.out(1.7)",
-          scrollTrigger: {
-            trigger: cardsRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
 
-    return () => ctx.revert()
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -1363,33 +938,33 @@ const FeaturesSection = () => {
       id="features"
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 relative overflow-hidden"
     >
-      {/* Parallax Background */}
-      <div ref={parallaxBg} className="absolute inset-0">
-        <div className="absolute top-0 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-pink-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 rounded-full blur-3xl" />
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12 sm:mb-16 lg:mb-20">
-          <h2
-            ref={titleRef}
+          <motion.h2
             className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6"
             style={{
               textShadow: "0 0 30px rgba(255,255,255,0.3)",
             }}
+            initial={{ opacity: 0, y: 100 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1 }}
           >
             Superpowers
             <span className="block bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
               Unleashed
             </span>
-          </h2>
-          <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4">
+          </motion.h2>
+          <motion.p
+            className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             Experience features so advanced, they feel like magic. Built for the future, available today.
-          </p>
+          </motion.p>
         </div>
 
-        <div ref={cardsRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={index}
@@ -1400,6 +975,9 @@ const FeaturesSection = () => {
                 rotateX: 5,
               }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              initial={{ opacity: 0, y: 100, scale: 0.8 }}
+              animate={isVisible ? { opacity: 1, y: 0, scale: 1 } : {}}
+              style={{ transitionDelay: `${index * 0.2}s` }}
             >
               <div
                 className={`relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br ${feature.bgColor} backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden h-full`}
@@ -1439,11 +1017,10 @@ const FeaturesSection = () => {
   )
 }
 
-// New Services Section
+// Services Section
 const ServicesSection = () => {
   const sectionRef = useRef<HTMLElement>(null)
-  const parallaxBg = useRef<HTMLDivElement>(null)
-  const parallaxElements = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const services = [
     {
@@ -1470,53 +1047,22 @@ const ServicesSection = () => {
   ]
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Multi-layer parallax for services section
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const progress = self.progress
-          const scrollY = window.scrollY
+    if (typeof window === "undefined") return
 
-          // Background parallax
-          gsap.set(parallaxBg.current, {
-            y: scrollY * 0.12,
-            scale: 1 + progress * 0.08,
-          })
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-          // Floating elements parallax
-          gsap.set(parallaxElements.current, {
-            y: scrollY * 0.35,
-            x: scrollY * 0.04,
-            rotation: scrollY * 0.015,
-          })
-        },
-      })
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
 
-      gsap.fromTo(
-        ".service-card",
-        { y: 100, opacity: 0, rotationY: 45 },
-        {
-          y: 0,
-          opacity: 1,
-          rotationY: 0,
-          duration: 1,
-          stagger: 0.3,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
-
-    return () => ctx.revert()
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -1525,30 +1071,28 @@ const ServicesSection = () => {
       id="services"
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 relative overflow-hidden"
     >
-      {/* Parallax Background */}
-      <div ref={parallaxBg} className="absolute inset-0">
-        <div className="absolute top-1/4 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
-
-      {/* Parallax Floating Elements */}
-      <div ref={parallaxElements} className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/6 right-1/4 w-40 h-40 bg-gradient-to-r from-cyan-400/15 to-blue-400/15 rounded-full blur-xl" />
-        <div className="absolute bottom-1/6 left-1/4 w-32 h-32 bg-gradient-to-r from-pink-400/20 to-purple-400/20 rounded-lg blur-lg rotate-12" />
-        <div className="absolute top-2/3 right-1/6 w-24 h-24 bg-gradient-to-r from-green-400/18 to-teal-400/18 rounded-full blur-md" />
-      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12 sm:mb-16 lg:mb-20">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6">
+          <motion.h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1 }}
+          >
             Our
             <span className="block bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
               Services
             </span>
-          </h2>
-          <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4">
+          </motion.h2>
+          <motion.p
+            className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4"
+            initial={{ opacity: 0, y: 30 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             Comprehensive digital solutions tailored to your unique needs and goals.
-          </p>
+          </motion.p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -1558,6 +1102,9 @@ const ServicesSection = () => {
               className="service-card group interactive"
               whileHover={{ scale: 1.02, y: -10 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              initial={{ opacity: 0, y: 100, }}
+              animate={isVisible ? { opacity: 1, y: 0, } : {}}
+              style={{ transitionDelay: `${index * 0.3}s` }}
             >
               <div className="bg-white/10 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/20 shadow-2xl h-full">
                 <div
@@ -1594,11 +1141,11 @@ const ServicesSection = () => {
   )
 }
 
-// Enhanced Testimonials Section
+// Testimonials Section
 const TestimonialsSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const sectionRef = useRef<HTMLElement>(null)
-  const parallaxBg = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const testimonials = [
     {
@@ -1638,40 +1185,22 @@ const TestimonialsSection = () => {
   }, [testimonials.length])
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Parallax background for testimonials
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const scrollY = window.scrollY
-          gsap.set(parallaxBg.current, {
-            y: scrollY * 0.08,
-            scale: 1 + self.progress * 0.05,
-          })
-        },
-      })
+    if (typeof window === "undefined") return
 
-      gsap.fromTo(
-        ".testimonial-container",
-        { y: 100, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 1,
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-    return () => ctx.revert()
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
+
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -1680,18 +1209,10 @@ const TestimonialsSection = () => {
       id="testimonials"
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 relative overflow-hidden"
     >
-      {/* Parallax Background */}
-      <div ref={parallaxBg} className="absolute inset-0">
-        <div className="absolute top-1/4 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-gradient-to-r from-pink-500/8 to-purple-500/8 rounded-full blur-3xl" />
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 60 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={isVisible ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
           className="text-center mb-12 sm:mb-16 lg:mb-20"
         >
@@ -1798,7 +1319,7 @@ const TestimonialsSection = () => {
   )
 }
 
-// Enhanced Contact Section
+// Contact Section
 const ContactSection = () => {
   const [formData, setFormData] = useState({
     name: "",
@@ -1808,55 +1329,29 @@ const ContactSection = () => {
   const [focusedField, setFocusedField] = useState<string | null>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
-  const parallaxBg = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Parallax background for contact section
-      ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 1,
-        onUpdate: (self) => {
-          const scrollY = window.scrollY
-          gsap.set(parallaxBg.current, {
-            y: scrollY * 0.1,
-            scale: 1 + self.progress * 0.05,
-          })
-        },
-      })
+    if (typeof window === "undefined") return
 
-      gsap.fromTo(
-        ".contact-element",
-        { y: 100, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.2,
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, sectionRef)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
 
-    return () => ctx.revert()
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
+
+    return () => observer.disconnect()
   }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    gsap.to(formRef.current, {
-      scale: 0.95,
-      duration: 0.1,
-      yoyo: true,
-      repeat: 1,
-      ease: "power2.inOut",
-    })
     console.log("Form submitted:", formData)
   }
 
@@ -1866,15 +1361,13 @@ const ContactSection = () => {
       id="contact"
       className="py-16 sm:py-20 lg:py-32 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 relative overflow-hidden"
     >
-      {/* Parallax Background */}
-      <div ref={parallaxBg} className="absolute inset-0">
-        <div className="absolute top-0 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-purple-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-blue-500/8 to-purple-500/8 rounded-full blur-3xl" />
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="contact-element text-center mb-12 sm:mb-16 lg:mb-20">
+        <motion.div
+          className="text-center mb-12 sm:mb-16 lg:mb-20"
+          initial={{ opacity: 0, y: 50 }}
+          animate={isVisible ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 1 }}
+        >
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6">
             Let's Create
             <span className="block bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
@@ -1884,7 +1377,7 @@ const ContactSection = () => {
           <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto px-4">
             Ready to transform your vision into reality? Let's start an extraordinary journey.
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           {/* Contact Info */}
@@ -1911,9 +1404,12 @@ const ContactSection = () => {
             ].map((item, index) => (
               <motion.div
                 key={index}
-                className="contact-element flex items-center space-x-4 sm:space-x-6 group interactive"
+                className="flex items-center space-x-4 sm:space-x-6 group interactive"
                 whileHover={{ x: 10 }}
                 transition={{ type: "spring", stiffness: 300 }}
+                initial={{ opacity: 0, y: 50 }}
+                animate={isVisible ? { opacity: 1, y: 0 } : {}}
+                style={{ transitionDelay: `${index * 0.2}s` }}
               >
                 <div
                   className={`bg-gradient-to-r ${item.color} p-3 sm:p-4 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300`}
@@ -1929,7 +1425,14 @@ const ContactSection = () => {
           </div>
 
           {/* Contact Form */}
-          <motion.form ref={formRef} className="contact-element space-y-6 sm:space-y-8" onSubmit={handleSubmit}>
+          <motion.form
+            ref={formRef}
+            className="space-y-6 sm:space-y-8"
+            onSubmit={handleSubmit}
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
             <div className="relative">
               <motion.div
                 animate={{
@@ -2013,9 +1516,10 @@ const ContactSection = () => {
   )
 }
 
-// Enhanced Footer
+// Footer
 const Footer = () => {
   const footerRef = useRef<HTMLElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   const socialLinks = [
     { icon: <Facebook className="w-5 sm:w-6 h-5 sm:h-6" />, href: "#", color: "hover:text-blue-400" },
@@ -2055,26 +1559,22 @@ const Footer = () => {
   ]
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".footer-element",
-        { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.1,
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 90%",
-            end: "bottom 10%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      )
-    }, footerRef)
+    if (typeof window === "undefined") return
 
-    return () => ctx.revert()
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.3 },
+    )
+
+    if (footerRef.current) {
+      observer.observe(footerRef.current)
+    }
+
+    return () => observer.disconnect()
   }, [])
 
   return (
@@ -2103,7 +1603,12 @@ const Footer = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-8 sm:pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-12 mb-12 sm:mb-16">
-          <div className="footer-element col-span-1 sm:col-span-2 lg:col-span-2">
+          <motion.div
+            className="col-span-1 sm:col-span-2 lg:col-span-2"
+            initial={{ opacity: 0, y: 50 }}
+            animate={isVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8 }}
+          >
             <motion.h3
               className="text-3xl sm:text-4xl font-black mb-4 sm:mb-6 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent interactive cursor-pointer"
               whileHover={{ scale: 1.05 }}
@@ -2132,19 +1637,19 @@ const Footer = () => {
                 </motion.a>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {footerLinks.map((section, index) => (
-            <div key={index} className="footer-element">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 50 }}
+              animate={isVisible ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.8, delay: index * 0.1 }}
+            >
               <h4 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-white">{section.title}</h4>
               <ul className="space-y-2 sm:space-y-3">
                 {section.links.map((link, linkIndex) => (
-                  <motion.li
-                    key={linkIndex}
-                    className="footer-element"
-                    whileHover={{ x: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
+                  <motion.li key={linkIndex} whileHover={{ x: 5 }} transition={{ type: "spring", stiffness: 300 }}>
                     <button
                       onClick={() => smoothScrollTo(link.href)}
                       className="text-white/70 hover:text-white transition-colors text-base sm:text-lg hover:text-purple-400 interactive text-left"
@@ -2154,15 +1659,15 @@ const Footer = () => {
                   </motion.li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
           ))}
         </div>
 
         <motion.div
-          className="footer-element border-t border-white/20 pt-6 sm:pt-8 text-center"
+          className="border-t border-white/20 pt-6 sm:pt-8 text-center"
           initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
+          animate={isVisible ? { opacity: 1 } : {}}
+          transition={{ duration: 0.8, delay: 0.5 }}
         >
           <p className="text-white/60 text-base sm:text-lg">
             &copy; {new Date().getFullYear()} NEXUS. All rights reserved. Built with ❤️ and lots of ☕
@@ -2178,10 +1683,12 @@ export default function AnimatedLandingPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Smooth scrolling for the entire page
+    if (typeof window === "undefined") return
+
+    // Register only ScrollTrigger
     gsap.registerPlugin(ScrollTrigger)
 
-    // Set up smooth scrolling
+    // Set up GSAP config
     gsap.config({
       nullTargetWarn: false,
     })
@@ -2192,7 +1699,12 @@ export default function AnimatedLandingPage() {
   }, [])
 
   return (
-    <div className="overflow-x-hidden" style={{ cursor: window.innerWidth > 1024 ? "none" : "auto" }}>
+    <div
+      className="overflow-x-hidden"
+      style={{
+        cursor: typeof window !== "undefined" && window.innerWidth > 1024 ? "none" : "auto",
+      }}
+    >
       <CustomCursor />
       <ParallaxBackground />
 
